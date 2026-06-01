@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Claude Code Status Line Generator</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2128; --border:#30363d;
+    --text:#e6edf3; --muted:#8b949e; --accent:#ff9d5c; --accent2:#388bfd;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--text);line-height:1.45}
+  header{padding:22px 24px;border-bottom:1px solid var(--border)}
+  header h1{margin:0;font-size:20px}
+  header p{margin:6px 0 0;color:var(--muted);font-size:14px}
+  header a{color:var(--accent2);text-decoration:none}
+  .wrap{display:grid;grid-template-columns:minmax(360px,1fr) minmax(380px,1.1fr);gap:0}
+  @media(max-width:900px){.wrap{grid-template-columns:1fr}}
+  .col{padding:20px 24px}
+  .col.left{border-right:1px solid var(--border)}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 0 10px}
+  h2:first-child{margin-top:0}
+  .seg{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+  .seg.off{opacity:.5}
+  .seg-head{display:flex;align-items:center;gap:8px}
+  .seg-head .name{font-weight:600;flex:1}
+  .seg-head .ord{display:flex;flex-direction:column;line-height:.7}
+  .seg-head .ord button{font-size:10px;padding:0 4px}
+  .seg-opts{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:9px;padding-top:9px;border-top:1px solid var(--border)}
+  .seg-opts.hidden{display:none}
+  .field{display:flex;flex-direction:column;gap:3px}
+  .field label{font-size:11px;color:var(--muted)}
+  .field.inline{flex-direction:row;align-items:center;gap:6px}
+  .field.inline label{font-size:13px;color:var(--text)}
+  input[type=text],input[type=number],select{
+     background:var(--panel2);border:1px solid var(--border);color:var(--text);
+     border-radius:6px;padding:5px 7px;font-size:13px;font-family:inherit}
+  input[type=text]{min-width:70px}
+  input[type=number]{width:64px}
+  input[type=range]{width:100%}
+  .swatch{width:12px;height:12px;border-radius:3px;display:inline-block;vertical-align:middle;margin-right:5px;border:1px solid #0006}
+  .preview{background:#0a0e14;border:1px solid var(--border);border-radius:8px;padding:16px;
+           font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;
+           white-space:pre;overflow-x:auto}
+  .preview .empty{color:var(--muted);font-style:italic}
+  pre.code{background:#0a0e14;border:1px solid var(--border);border-radius:8px;padding:14px;
+           font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;
+           white-space:pre;overflow:auto;max-height:340px;margin:0}
+  .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  button{cursor:pointer;font-family:inherit}
+  .btn{background:var(--accent2);color:#fff;border:none;border-radius:7px;padding:9px 14px;font-size:13px;font-weight:600}
+  .btn.alt{background:var(--panel2);color:var(--text);border:1px solid var(--border)}
+  .btn:active{transform:translateY(1px)}
+  .ord button,.mini{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:5px}
+  .scenario{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+  .scenario .row{display:flex;align-items:center;gap:10px;margin:7px 0}
+  .scenario .row label{width:96px;font-size:12px;color:var(--muted)}
+  .scenario .row .val{width:42px;text-align:right;font-variant-numeric:tabular-nums;font-size:12px}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#238636;color:#fff;
+         padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+  .checks{display:flex;flex-wrap:wrap;gap:8px 16px}
+  small.hint{color:var(--muted);font-size:11px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Claude Code Status Line Generator</h1>
+  <p>Toggle segments, tune colors and labels, watch the live preview — then copy the setup prompt or download a Markdown spec to hand to Claude Code. <a href="https://github.com/Aymix/claude-code-statusline-generator" target="_blank" rel="noopener">Repo</a></p>
+</header>
+<div class="wrap">
+  <div class="col left">
+    <h2>Segments</h2>
+    <div id="segments"></div>
+
+    <h2>Global style</h2>
+    <div class="scenario">
+      <div class="row"><label>Bar width</label><input type="number" id="g-barWidth" min="3" max="30" /></div>
+      <div class="row"><label>Filled char</label><input type="text" id="g-filled" maxlength="2" style="width:54px" /></div>
+      <div class="row"><label>Empty char</label><input type="text" id="g-empty" maxlength="2" style="width:54px" /></div>
+      <div class="row"><label>Separator</label>
+        <select id="g-sep">
+          <option value="  ">2 spaces</option>
+          <option value=" ">1 space</option>
+          <option value="  |  ">| pipe</option>
+          <option value="  ·  ">· dot</option>
+          <option value="  •  ">• bullet</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="col right">
+    <h2>Preview</h2>
+    <div class="preview" id="preview"></div>
+    <div class="scenario" style="margin-top:10px">
+      <div class="row"><label>Context %</label><input type="range" id="s-ctx" min="0" max="100" /><span class="val" id="s-ctx-v"></span></div>
+      <div class="row"><label>Rate %</label><input type="range" id="s-rate" min="0" max="100" /><span class="val" id="s-rate-v"></span></div>
+      <div class="checks" style="margin-top:6px">
+        <span class="field inline"><input type="checkbox" id="s-rateAvail" /><label for="s-rateAvail">rate available</label></span>
+        <span class="field inline"><input type="checkbox" id="s-kvOn" /><label for="s-kvOn">cache (kv) &gt; 0</label></span>
+        <span class="field inline"><input type="checkbox" id="s-effortOn" /><label for="s-effortOn">effort set</label></span>
+      </div>
+    </div>
+
+    <h2>Output</h2>
+    <div class="btnrow">
+      <button class="btn" id="copyPrompt">Copy prompt</button>
+      <button class="btn" id="downloadMd">Download .md</button>
+      <button class="btn alt" id="copyScript">Copy script</button>
+      <button class="btn alt" id="downloadSh">Download .sh</button>
+      <button class="btn alt" id="reset" style="margin-left:auto">Reset</button>
+    </div>
+    <pre class="code" id="script"></pre>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- colors ---------- */
+const COLORS = {
+  boldblue:{ansi:'\\033[01;34m', css:'#6ea8ff', bold:true},
+  blue:    {ansi:'\\033[94m',    css:'#6ea8ff'},
+  cyan:    {ansi:'\\033[96m',    css:'#56d4dd'},
+  green:   {ansi:'\\033[92m',    css:'#5af78e'},
+  yellow:  {ansi:'\\033[93m',    css:'#f4f99d'},
+  orange:  {ansi:'\\033[38;5;214m', css:'#ffb454'},
+  red:     {ansi:'\\033[91m',    css:'#ff6b6b'},
+  magenta: {ansi:'\\033[95m',    css:'#ff79c6'},
+  white:   {ansi:'\\033[97m',    css:'#f8f8f2'},
+  grey:    {ansi:'\\033[0;37m',  css:'#9aa0a6'},
+};
+const COLOR_ORDER = ['boldblue','blue','cyan','green','yellow','orange','red','magenta','white','grey'];
+const RESET = '\\033[0m';
+
+/* ---------- default state ---------- */
+function defaultState(){
+  return {
+    segments:[
+      {key:'cwd',  name:'Working directory', enabled:true,  color:'boldblue', pathMode:'full'},
+      {key:'model',name:'Model name',        enabled:true,  color:'cyan', showEffort:true, effortColor:'grey'},
+      {key:'git',  name:'Git branch',        enabled:false, color:'blue', label:'git:'},
+      {key:'ctx',  name:'Context bar',       enabled:true,  color:'yellow', label:'ctx:', showPct:true},
+      {key:'rate', name:'Rate-limit bar (5h)',enabled:true, color:'orange', label:'total:', showPct:true},
+      {key:'kv',   name:'Cache read (kv)',   enabled:true,  color:'magenta', label:'kv:'},
+      {key:'in',   name:'Input tokens',      enabled:true,  color:'green', label:'in:'},
+      {key:'out',  name:'Output tokens',     enabled:true,  color:'red', label:'out:'},
+      {key:'tok',  name:'Total tokens',      enabled:true,  color:'white', label:'tok:', includeCache:true},
+    ],
+    globals:{barWidth:10, filled:'█', empty:'░', separator:'  '},
+    sample:{cwd:'/home/you/work/my-project', home:'/home/you', model:'Claude Sonnet',
+            effort:'medium', effortOn:true, ctxPct:12, ratePct:34, rateAvail:true,
+            kv:1100000, kvOn:true, tin:24300, tout:8700, branch:'main'},
+  };
+}
+
+/* ---------- helpers ---------- */
+function escFmt(s){ return String(s).replace(/\\/g,'\\\\').replace(/%/g,'%%').replace(/'/g,"'\\''"); }
+function escSingle(s){ return String(s).replace(/'/g,"'\\''"); }
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtTokens(n){ n=Number(n)||0;
+  if(n>=1000000) return (n/1000000).toFixed(1)+'M';
+  if(n>=1000)    return (n/1000).toFixed(1)+'k';
+  return String(Math.round(n)); }
+function makeBar(pct,width,f,e){ pct=Number(pct)||0;
+  let filled=Math.floor(pct*width/100); if(filled>width)filled=width; if(filled<0)filled=0;
+  return f.repeat(filled)+e.repeat(width-filled); }
+
+/* ---------- script generation ---------- */
+function buildScript(state){
+  const enabled = state.segments.filter(s=>s.enabled);
+  const G = state.globals;
+  const has = k => enabled.some(s=>s.key===k);
+  const tokSeg = state.segments.find(s=>s.key==='tok');
+  const needCache = has('kv') || (has('tok') && tokSeg && tokSeg.includeCache);
+  const anyBar = has('ctx') || has('rate');
+  const anyTok = has('kv')||has('in')||has('out')||has('tok');
+  const L=[];
+  const P=x=>L.push(x);
+
+  P('#!/usr/bin/env bash');
+  P('# Claude Code status line — made with claude-code-statusline-generator');
+  P('# The status line runs in a bare shell, so make jq/awk findable.');
+  P('export PATH="/opt/homebrew/bin:/usr/local/bin:/home/linuxbrew/.linuxbrew/bin:/usr/bin:/bin:$PATH"');
+  P('');
+  P('input=$(cat)');
+
+  if(anyTok){
+    P('');
+    P('fmt_tokens() {');
+    P('    awk -v n="${1:-0}" \'BEGIN{');
+    P('        if (n+0 >= 1000000)   printf "%.1fM", n/1000000;');
+    P('        else if (n+0 >= 1000) printf "%.1fk", n/1000;');
+    P('        else                  printf "%d", n;');
+    P('    }\'');
+    P('}');
+  }
+  if(anyBar){
+    P('');
+    P('make_bar() {');
+    P('    local pct=${1:-0} width='+G.barWidth+' filled empty bar="" i');
+    P('    filled=$(( pct * width / 100 ))');
+    P('    [ "$filled" -gt "$width" ] && filled=$width');
+    P('    [ "$filled" -lt 0 ] && filled=0');
+    P('    empty=$(( width - filled ))');
+    P('    i=0; while [ $i -lt $filled ]; do bar="${bar}'+G.filled+'"; i=$(( i + 1 )); done');
+    P('    i=0; while [ $i -lt $empty ];  do bar="${bar}'+G.empty+'"; i=$(( i + 1 )); done');
+    P('    printf \'%s\' "$bar"');
+    P('}');
+  }
+  P('');
+  if(has('cwd')||has('git')) P("cwd_raw=$(echo \"$input\" | jq -r '.cwd')");
+  if(has('model')){
+    P("display_name=$(echo \"$input\" | jq -r '.model.display_name // \"Claude\"')");
+    const m=state.segments.find(s=>s.key==='model');
+    if(m.showEffort) P("effort=$(echo \"$input\" | jq -r '.effort.level // empty')");
+  }
+  if(has('ctx')) P("used_pct=$(echo \"$input\" | jq -r 'if .context_window.used_percentage == null then 0 else (.context_window.used_percentage + 0.5 | floor) end')");
+  if(has('rate')) P("rl_pct=$(echo \"$input\" | jq -r 'if .rate_limits.five_hour.used_percentage == null then \"\" else (.rate_limits.five_hour.used_percentage + 0.5 | floor | tostring) end')");
+  if(has('in')||has('tok')) P("total_in=$(echo \"$input\" | jq -r '.context_window.total_input_tokens // 0')");
+  if(has('out')||has('tok')) P("total_out=$(echo \"$input\" | jq -r '.context_window.total_output_tokens // 0')");
+  if(needCache) P("cache_read=$(echo \"$input\" | jq -r '.context_window.current_usage.cache_read_input_tokens // 0')");
+  P('');
+  P('segments=()');
+
+  for(const s of enabled){
+    const a = COLORS[s.color].ansi;
+    const lbl = escFmt(s.label||'');
+    switch(s.key){
+      case 'cwd':
+        if(s.pathMode==='basename'){ P('cwd_disp=$(basename "$cwd_raw")'); P("segments+=(\"$(printf '"+a+"%s"+RESET+"' \"$cwd_disp\")\")"); }
+        else if(s.pathMode==='tilde'){ P('cwd_disp="${cwd_raw/#$HOME/~}"'); P("segments+=(\"$(printf '"+a+"%s"+RESET+"' \"$cwd_disp\")\")"); }
+        else { P("segments+=(\"$(printf '"+a+"%s"+RESET+"' \"$cwd_raw\")\")"); }
+        break;
+      case 'model':{
+        P("m=\"$(printf '"+a+"%s"+RESET+"' \"$display_name\")\"");
+        if(s.showEffort){ const ce=COLORS[s.effortColor||'grey'].ansi;
+          P("[ -n \"$effort\" ] && m=\"$m$(printf '"+ce+":%s"+RESET+"' \"$effort\")\""); }
+        P('segments+=("$m")');
+        break;
+      }
+      case 'git':
+        P('branch=$(git -C "${cwd_raw:-.}" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null)');
+        P("g=\"\"; [ -n \"$branch\" ] && g=\"$(printf '"+a+lbl+"%s"+RESET+"' \"$branch\")\"");
+        P('segments+=("$g")');
+        break;
+      case 'ctx':{
+        const pp=s.showPct?' %s%%':''; const args=s.showPct?'"$(make_bar "$used_pct")" "$used_pct"':'"$(make_bar "$used_pct")"';
+        P("segments+=(\"$(printf '"+a+lbl+"[%s]"+pp+RESET+"' "+args+")\")");
+        break;
+      }
+      case 'rate':{
+        const pp=s.showPct?' %s%%':''; const args=s.showPct?'"$(make_bar "$rl_pct")" "$rl_pct"':'"$(make_bar "$rl_pct")"';
+        P("r=\"\"; [ -n \"$rl_pct\" ] && r=\"$(printf '"+a+lbl+"[%s]"+pp+RESET+"' "+args+")\"");
+        P('segments+=("$r")');
+        break;
+      }
+      case 'kv':
+        P("k=\"\"; [ \"$cache_read\" -gt 0 ] 2>/dev/null && k=\"$(printf '"+a+lbl+"%s"+RESET+"' \"$(fmt_tokens \"$cache_read\")\")\"");
+        P('segments+=("$k")');
+        break;
+      case 'in':
+        P("segments+=(\"$(printf '"+a+lbl+"%s"+RESET+"' \"$(fmt_tokens \"$total_in\")\")\")");
+        break;
+      case 'out':
+        P("segments+=(\"$(printf '"+a+lbl+"%s"+RESET+"' \"$(fmt_tokens \"$total_out\")\")\")");
+        break;
+      case 'tok':{
+        const inc=s.includeCache?' + ${cache_read:-0}':'';
+        P('tok_all=$(( ${total_in:-0} + ${total_out:-0}'+inc+' ))');
+        P("segments+=(\"$(printf '"+a+lbl+"%s"+RESET+"' \"$(fmt_tokens \"$tok_all\")\")\")");
+        break;
+      }
+    }
+  }
+  P('');
+  P("sep='"+escSingle(G.separator)+"'");
+  P('line=""');
+  P('for s in "${segments[@]}"; do');
+  P('    [ -z "$s" ] && continue');
+  P('    if [ -z "$line" ]; then line="$s"; else line="$line$sep$s"; fi');
+  P('done');
+  P("printf '%s' \"$line\"");
+  return L.join('\n')+'\n';
+}
+
+/* ---------- preview ---------- */
+function buildPreviewHTML(state){
+  const G=state.globals, sm=state.sample;
+  const span=(color,txt)=>{const c=COLORS[color];return '<span style="color:'+c.css+(c.bold?';font-weight:700':'')+'">'+escHtml(txt)+'</span>';};
+  const parts=[];
+  for(const s of state.segments){
+    if(!s.enabled) continue;
+    switch(s.key){
+      case 'cwd':{
+        let d=sm.cwd;
+        if(s.pathMode==='basename') d=sm.cwd.split('/').filter(Boolean).pop()||sm.cwd;
+        else if(s.pathMode==='tilde' && sm.cwd.startsWith(sm.home)) d='~'+sm.cwd.slice(sm.home.length);
+        parts.push(span(s.color,d)); break;
+      }
+      case 'model':{
+        let h=span(s.color,sm.model);
+        if(s.showEffort && sm.effortOn) h+=span(s.effortColor||'grey',':'+sm.effort);
+        parts.push(h); break;
+      }
+      case 'git':
+        if(sm.branch) parts.push(span(s.color,(s.label||'')+sm.branch));
+        break;
+      case 'ctx':{
+        const bar=makeBar(sm.ctxPct,G.barWidth,G.filled,G.empty);
+        parts.push(span(s.color,(s.label||'')+'['+bar+']'+(s.showPct?' '+sm.ctxPct+'%':''))); break;
+      }
+      case 'rate':{
+        if(!sm.rateAvail) break;
+        const bar=makeBar(sm.ratePct,G.barWidth,G.filled,G.empty);
+        parts.push(span(s.color,(s.label||'')+'['+bar+']'+(s.showPct?' '+sm.ratePct+'%':''))); break;
+      }
+      case 'kv':
+        if(sm.kvOn && sm.kv>0) parts.push(span(s.color,(s.label||'')+fmtTokens(sm.kv)));
+        break;
+      case 'in':  parts.push(span(s.color,(s.label||'')+fmtTokens(sm.tin))); break;
+      case 'out': parts.push(span(s.color,(s.label||'')+fmtTokens(sm.tout))); break;
+      case 'tok':{
+        const t=sm.tin+sm.tout+(s.includeCache&&sm.kvOn?sm.kv:0);
+        parts.push(span(s.color,(s.label||'')+fmtTokens(t))); break;
+      }
+    }
+  }
+  if(!parts.length) return '<span class="empty">no segments enabled</span>';
+  return parts.join(escHtml(G.separator));
+}
+
+/* ---------- outputs ---------- */
+const SETTINGS_SNIPPET = '{"type":"command","command":"bash ~/.claude/statusline-command.sh"}';
+function buildPrompt(state){
+  const script=buildScript(state).replace(/\s+$/,'');
+  return [
+    'Set up this status line in my Claude Code.',
+    '',
+    '1. Create `~/.claude/statusline-command.sh` with exactly this content:',
+    '',
+    '```bash',script,'```','',
+    '2. Make it executable: `chmod +x ~/.claude/statusline-command.sh`',
+    '3. In `~/.claude/settings.json`, set `"statusLine"` to `'+SETTINGS_SNIPPET+'` without changing my other settings.',
+    '4. Then tell me to restart Claude Code.',
+  ].join('\n');
+}
+function buildMarkdown(state){
+  const script=buildScript(state).replace(/\s+$/,'');
+  return [
+    '# My Claude Code Status Line','',
+    'Made with [claude-code-statusline-generator](https://github.com/Aymix/claude-code-statusline-generator).','',
+    '## 1. Create the script','',
+    'Save this as `~/.claude/statusline-command.sh`:','',
+    '```bash',script,'```','',
+    'Make it executable:','',
+    '```bash','chmod +x ~/.claude/statusline-command.sh','```','',
+    '## 2. Register it','',
+    'Add this to `~/.claude/settings.json` (create the file if needed):','',
+    '```json','{','  "statusLine": {','    "type": "command",','    "command": "bash ~/.claude/statusline-command.sh"','  }','}','```','',
+    '## 3. Reload','',
+    'Restart Claude Code, or ask it to reload the status line.','',
+    '> Tip: you can also hand this whole file to Claude Code and say *"implement this status line setup"*.','',
+  ].join('\n');
+}
+
+/* ---------- DOM ---------- */
+function init(){
+  let state = defaultState();
+  const $ = id => document.getElementById(id);
+
+  function colorSelect(seg, prop){
+    const sel=document.createElement('select');
+    for(const c of COLOR_ORDER){
+      const o=document.createElement('option'); o.value=c; o.textContent=c;
+      if(seg[prop]===c)o.selected=true; sel.appendChild(o);
+    }
+    sel.onchange=()=>{seg[prop]=sel.value;refresh();};
+    return sel;
+  }
+  function field(labelText, el){
+    const w=document.createElement('div'); w.className='field';
+    const l=document.createElement('label'); l.textContent=labelText;
+    w.appendChild(l); w.appendChild(el); return w;
+  }
+  function textField(labelText, seg, prop){
+    const i=document.createElement('input'); i.type='text'; i.value=seg[prop]||'';
+    i.oninput=()=>{seg[prop]=i.value;refresh();};
+    return field(labelText,i);
+  }
+  function checkField(labelText, seg, prop){
+    const w=document.createElement('div'); w.className='field inline';
+    const i=document.createElement('input'); i.type='checkbox'; i.checked=!!seg[prop];
+    i.onchange=()=>{seg[prop]=i.checked;refresh();};
+    const l=document.createElement('label'); l.textContent=labelText;
+    w.appendChild(i); w.appendChild(l); return w;
+  }
+
+  function renderSegments(){
+    const host=$('segments'); host.innerHTML='';
+    state.segments.forEach((seg,idx)=>{
+      const box=document.createElement('div'); box.className='seg'+(seg.enabled?'':' off');
+      const head=document.createElement('div'); head.className='seg-head';
+      const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=seg.enabled;
+      chk.onchange=()=>{seg.enabled=chk.checked;renderSegments();refresh();};
+      const name=document.createElement('span'); name.className='name'; name.textContent=seg.name;
+      name.insertAdjacentHTML('afterbegin','<span class="swatch" style="background:'+COLORS[seg.color].css+'"></span>');
+      const ord=document.createElement('div'); ord.className='ord';
+      const up=document.createElement('button'); up.textContent='▲'; up.title='move up';
+      up.onclick=()=>{if(idx>0){const a=state.segments;[a[idx-1],a[idx]]=[a[idx],a[idx-1]];renderSegments();refresh();}};
+      const dn=document.createElement('button'); dn.textContent='▼'; dn.title='move down';
+      dn.onclick=()=>{const a=state.segments;if(idx<a.length-1){[a[idx+1],a[idx]]=[a[idx],a[idx+1]];renderSegments();refresh();}};
+      ord.appendChild(up); ord.appendChild(dn);
+      head.appendChild(chk); head.appendChild(name); head.appendChild(ord);
+      box.appendChild(head);
+
+      const opts=document.createElement('div'); opts.className='seg-opts'+(seg.enabled?'':' hidden');
+      opts.appendChild(field('color',colorSelect(seg,'color')));
+      if(['git','ctx','rate','kv','in','out','tok'].includes(seg.key)) opts.appendChild(textField('label',seg,'label'));
+      if(seg.key==='cwd'){
+        const sel=document.createElement('select');
+        [['full','full path'],['tilde','~ shorten home'],['basename','folder name only']].forEach(([v,t])=>{
+          const o=document.createElement('option');o.value=v;o.textContent=t;if(seg.pathMode===v)o.selected=true;sel.appendChild(o);});
+        sel.onchange=()=>{seg.pathMode=sel.value;refresh();};
+        opts.appendChild(field('path',sel));
+      }
+      if(seg.key==='model'){ opts.appendChild(checkField('show effort',seg,'showEffort')); opts.appendChild(field('effort color',colorSelect(seg,'effortColor'))); }
+      if(seg.key==='ctx'||seg.key==='rate') opts.appendChild(checkField('show %',seg,'showPct'));
+      if(seg.key==='tok') opts.appendChild(checkField('include cache reads',seg,'includeCache'));
+      box.appendChild(opts);
+      host.appendChild(box);
+    });
+  }
+
+  function refresh(){
+    $('preview').innerHTML = buildPreviewHTML(state);
+    $('script').textContent = buildScript(state);
+  }
+
+  // global + scenario bindings
+  $('g-barWidth').value=state.globals.barWidth;
+  $('g-filled').value=state.globals.filled;
+  $('g-empty').value=state.globals.empty;
+  $('g-sep').value=state.globals.separator;
+  $('g-barWidth').oninput=e=>{state.globals.barWidth=Math.max(1,parseInt(e.target.value)||10);refresh();};
+  $('g-filled').oninput=e=>{state.globals.filled=e.target.value||'█';refresh();};
+  $('g-empty').oninput=e=>{state.globals.empty=e.target.value||'░';refresh();};
+  $('g-sep').onchange=e=>{state.globals.separator=e.target.value;refresh();};
+
+  function bindScenario(){
+    $('s-ctx').value=state.sample.ctxPct; $('s-ctx-v').textContent=state.sample.ctxPct+'%';
+    $('s-rate').value=state.sample.ratePct; $('s-rate-v').textContent=state.sample.ratePct+'%';
+    $('s-rateAvail').checked=state.sample.rateAvail;
+    $('s-kvOn').checked=state.sample.kvOn;
+    $('s-effortOn').checked=state.sample.effortOn;
+  }
+  $('s-ctx').oninput=e=>{state.sample.ctxPct=+e.target.value;$('s-ctx-v').textContent=e.target.value+'%';refresh();};
+  $('s-rate').oninput=e=>{state.sample.ratePct=+e.target.value;$('s-rate-v').textContent=e.target.value+'%';refresh();};
+  $('s-rateAvail').onchange=e=>{state.sample.rateAvail=e.target.checked;refresh();};
+  $('s-kvOn').onchange=e=>{state.sample.kvOn=e.target.checked;refresh();};
+  $('s-effortOn').onchange=e=>{state.sample.effortOn=e.target.checked;refresh();};
+
+  // output buttons
+  function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1400);}
+  function copy(text,msg){
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(()=>toast(msg)).catch(()=>fallbackCopy(text,msg));}
+    else fallbackCopy(text,msg);
+  }
+  function fallbackCopy(text,msg){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast(msg);}catch(e){toast('copy failed');}document.body.removeChild(ta);}
+  function download(name,text,mime){const b=new Blob([text],{type:mime||'text/plain'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(u),1000);}
+  $('copyPrompt').onclick=()=>copy(buildPrompt(state),'Prompt copied');
+  $('copyScript').onclick=()=>copy(buildScript(state),'Script copied');
+  $('downloadMd').onclick=()=>download('statusline-setup.md',buildMarkdown(state),'text/markdown');
+  $('downloadSh').onclick=()=>download('statusline-command.sh',buildScript(state),'text/x-shellscript');
+  $('reset').onclick=()=>{state=defaultState();renderSegments();
+    $('g-barWidth').value=state.globals.barWidth;$('g-filled').value=state.globals.filled;
+    $('g-empty').value=state.globals.empty;$('g-sep').value=state.globals.separator;bindScenario();refresh();};
+
+  renderSegments(); bindScenario(); refresh();
+}
+
+if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', init);
+if (typeof window === 'undefined'){ globalThis.buildScript=buildScript; globalThis.defaultState=defaultState; }
+</script>
+</body>
+</html>

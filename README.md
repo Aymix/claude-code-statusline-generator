@@ -22,6 +22,14 @@ A colorful status line for [Claude Code](https://claude.com/claude-code). It sho
 
 Both percentages render as 10-block bars (`█` filled, `░` empty).
 
+## Web generator
+
+Don't want to hand-edit the script? Use the visual builder — toggle segments, pick colors and labels, reorder, and watch a live preview. Then **copy a ready-to-paste prompt** for Claude Code or **download a Markdown spec**.
+
+**Live:** https://aymix.github.io/claude-code-statusline-generator/
+
+Or open `index.html` from this repo directly in your browser (it's a single file, no build step).
+
 ## Install
 
 ### Option A — installer
