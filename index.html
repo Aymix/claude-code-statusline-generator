@@ -6,64 +6,109 @@
 <meta name="description" content="Visually build a custom Claude Code status line — toggle segments, pick colors and labels, preview live, then copy a paste-ready prompt or download a Markdown setup spec." />
 <title>Claude Code Status Line Generator</title>
 <style>
+  /* iOS / Apple Human Interface Guidelines design system */
   :root{
-    --bg:#0d1117; --panel:#161b22; --panel2:#1c2128; --border:#30363d;
-    --text:#e6edf3; --muted:#8b949e; --accent:#ff9d5c; --accent2:#388bfd;
+    --bg:#f2f2f7;            /* systemGroupedBackground */
+    --card:#ffffff;          /* secondarySystemGroupedBackground */
+    --label:#000000;
+    --label2:rgba(60,60,67,.6);   /* secondaryLabel */
+    --label3:rgba(60,60,67,.3);   /* tertiaryLabel */
+    --sep:rgba(60,60,67,.29);     /* separator */
+    --fill:rgba(118,118,128,.12); /* tertiarySystemFill */
+    --blue:#007aff; --green:#34c759; --red:#ff3b30; --gray:#8e8e93;
+    --term:#1c1c1e;          /* dark terminal surface */
+    --radius:12px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#000000; --card:#1c1c1e; --label:#ffffff;
+      --label2:rgba(235,235,245,.6); --label3:rgba(235,235,245,.3);
+      --sep:rgba(84,84,88,.65); --fill:rgba(118,118,128,.24);
+      --blue:#0a84ff; --green:#30d158; --red:#ff453a; --term:#0c0c0e;
+    }
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-       background:var(--bg);color:var(--text);line-height:1.45}
-  header{padding:22px 24px;border-bottom:1px solid var(--border)}
-  header h1{margin:0;font-size:20px}
-  header p{margin:6px 0 0;color:var(--muted);font-size:14px}
-  header a{color:var(--accent2);text-decoration:none}
-  .wrap{display:grid;grid-template-columns:minmax(360px,1fr) minmax(380px,1.1fr);gap:0}
-  @media(max-width:900px){.wrap{grid-template-columns:1fr}}
-  .col{padding:20px 24px}
-  .col.left{border-right:1px solid var(--border)}
-  h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 0 10px}
-  h2:first-child{margin-top:0}
-  .seg{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px}
-  .seg.off{opacity:.5}
-  .seg-head{display:flex;align-items:center;gap:8px}
-  .seg-head .name{font-weight:600;flex:1}
-  .seg-head .ord{display:flex;flex-direction:column;line-height:.7}
-  .seg-head .ord button{font-size:10px;padding:0 4px}
-  .seg-opts{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:9px;padding-top:9px;border-top:1px solid var(--border)}
+  body{margin:0;-webkit-font-smoothing:antialiased;
+       font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--label);line-height:1.4;font-size:15px}
+  header{padding:28px 22px 14px;max-width:1180px;margin:0 auto}
+  header h1{margin:0;font-size:32px;line-height:1.1;letter-spacing:-.02em;font-weight:700}
+  header p{margin:8px 0 0;color:var(--label2);font-size:15px;max-width:680px}
+  header a{color:var(--blue);text-decoration:none}
+  .wrap{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;max-width:1180px;margin:0 auto;padding:0 22px 48px}
+  @media(max-width:880px){.wrap{grid-template-columns:1fr}}
+  .col{padding:8px 0}
+  h2{font-size:13px;font-weight:400;color:var(--label2);margin:26px 12px 7px;letter-spacing:-.01em}
+  h2:first-child{margin-top:8px}
+
+  /* grouped inset cards */
+  .seg,.scenario{background:var(--card);border-radius:var(--radius);box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .seg{padding:13px 16px;margin-bottom:10px}
+  .seg.off{opacity:.55}
+  .seg-head{display:flex;align-items:center;gap:12px}
+  .seg-head .name{font-weight:600;flex:1;font-size:16px;letter-spacing:-.01em}
+  .seg-head .ord{display:flex;flex-direction:column;gap:3px}
+  .seg-head .ord button{font-size:11px;line-height:1;width:26px;height:18px;padding:0;
+     background:var(--fill);color:var(--blue);border:none;border-radius:6px}
+  .seg-opts{display:flex;flex-wrap:wrap;gap:12px 18px;margin-top:13px;padding-top:13px;border-top:1px solid var(--sep)}
   .seg-opts.hidden{display:none}
-  .field{display:flex;flex-direction:column;gap:3px}
-  .field label{font-size:11px;color:var(--muted)}
-  .field.inline{flex-direction:row;align-items:center;gap:6px}
-  .field.inline label{font-size:13px;color:var(--text)}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:12px;color:var(--label2)}
+  .field.inline{flex-direction:row;align-items:center;gap:9px}
+  .field.inline label{font-size:15px;color:var(--label)}
+
+  /* text/number/select — iOS filled fields */
   input[type=text],input[type=number],select{
-     background:var(--panel2);border:1px solid var(--border);color:var(--text);
-     border-radius:6px;padding:5px 7px;font-size:13px;font-family:inherit}
-  input[type=text]{min-width:70px}
-  input[type=number]{width:64px}
-  input[type=range]{width:100%}
-  .swatch{width:12px;height:12px;border-radius:3px;display:inline-block;vertical-align:middle;margin-right:5px;border:1px solid #0006}
-  .preview{background:#0a0e14;border:1px solid var(--border);border-radius:8px;padding:16px;
-           font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;
-           white-space:pre;overflow-x:auto}
-  .preview .empty{color:var(--muted);font-style:italic}
-  pre.code{background:#0a0e14;border:1px solid var(--border);border-radius:8px;padding:14px;
-           font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;
-           white-space:pre;overflow:auto;max-height:340px;margin:0}
-  .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+     background:var(--fill);border:none;color:var(--label);
+     border-radius:9px;padding:8px 11px;font-size:15px;font-family:inherit;appearance:none;-webkit-appearance:none}
+  select{padding-right:30px;
+     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M3 4.5L6 7.5L9 4.5' stroke='%238e8e93' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+     background-repeat:no-repeat;background-position:right 10px center;cursor:pointer}
+  input[type=text]{min-width:84px}
+  input[type=number]{width:74px}
+  input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
+
+  /* iOS switch (styled checkbox) */
+  input[type=checkbox]{appearance:none;-webkit-appearance:none;flex:0 0 auto;cursor:pointer;
+     width:46px;height:28px;border-radius:28px;background:var(--label3);position:relative;transition:background .22s}
+  input[type=checkbox]::after{content:"";position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;
+     background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.28),0 1px 1px rgba(0,0,0,.16);transition:transform .22s}
+  input[type=checkbox]:checked{background:var(--green)}
+  input[type=checkbox]:checked::after{transform:translateX(18px)}
+
+  /* iOS slider */
+  input[type=range]{width:100%;accent-color:var(--blue);height:22px}
+
+  .swatch{width:13px;height:13px;border-radius:4px;display:inline-block;vertical-align:middle;margin-right:7px;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
+
+  /* preview + code keep a dark terminal surface so ANSI colors read true */
+  .preview,pre.code{background:var(--term);border-radius:var(--radius);
+     font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre;color:#fff}
+  .preview{padding:18px 16px;font-size:14px;overflow-x:auto}
+  .preview .empty{color:#8e8e93;font-style:italic}
+  pre.code{padding:15px 16px;font-size:12.5px;overflow:auto;max-height:340px;margin:0;color:#e6e6e6}
+
+  /* iOS buttons */
+  .btnrow{display:flex;flex-wrap:wrap;gap:10px;margin:14px 12px}
   button{cursor:pointer;font-family:inherit}
-  .btn{background:var(--accent2);color:#fff;border:none;border-radius:7px;padding:9px 14px;font-size:13px;font-weight:600}
-  .btn.alt{background:var(--panel2);color:var(--text);border:1px solid var(--border)}
-  .btn:active{transform:translateY(1px)}
-  .ord button,.mini{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:5px}
-  .scenario{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
-  .scenario .row{display:flex;align-items:center;gap:10px;margin:7px 0}
-  .scenario .row label{width:96px;font-size:12px;color:var(--muted)}
-  .scenario .row .val{width:42px;text-align:right;font-variant-numeric:tabular-nums;font-size:12px}
-  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#238636;color:#fff;
-         padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
-  .toast.show{opacity:1}
-  .checks{display:flex;flex-wrap:wrap;gap:8px 16px}
-  small.hint{color:var(--muted);font-size:11px}
+  .btn{background:var(--blue);color:#fff;border:none;border-radius:12px;padding:11px 18px;font-size:16px;font-weight:600;letter-spacing:-.01em;transition:opacity .15s}
+  .btn.alt{background:var(--fill);color:var(--blue)}
+  .btn:active{opacity:.6}
+  #reset{background:none;color:var(--red);padding:11px 8px}
+
+  .scenario{padding:6px 16px}
+  .scenario .row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--sep)}
+  .scenario .row:last-child{border-bottom:none}
+  .scenario .row label{width:92px;font-size:15px;color:var(--label)}
+  .scenario .row .val{margin-left:auto;min-width:42px;text-align:right;font-variant-numeric:tabular-nums;font-size:15px;color:var(--label2)}
+  .checks{display:flex;flex-wrap:wrap;gap:14px 20px;padding:12px 0}
+
+  /* iOS HUD toast */
+  .toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) scale(.96);
+     background:rgba(30,30,32,.92);color:#fff;backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+     padding:12px 22px;border-radius:18px;font-size:15px;font-weight:500;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) scale(1)}
+  small.hint{color:var(--label2);font-size:12px}
 </style>
 </head>
 <body>
