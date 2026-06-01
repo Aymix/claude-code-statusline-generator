@@ -17,6 +17,7 @@
     --fill:rgba(118,118,128,.12); /* tertiarySystemFill */
     --blue:#007aff; --green:#34c759; --red:#ff3b30; --gray:#8e8e93;
     --term:#1c1c1e;          /* dark terminal surface */
+    --seg-track:rgba(118,118,128,.12); --seg-sel:#ffffff;
     --radius:12px;
   }
   @media (prefers-color-scheme: dark){
@@ -25,6 +26,7 @@
       --label2:rgba(235,235,245,.6); --label3:rgba(235,235,245,.3);
       --sep:rgba(84,84,88,.65); --fill:rgba(118,118,128,.24);
       --blue:#0a84ff; --green:#30d158; --red:#ff453a; --term:#0c0c0e;
+      --seg-track:rgba(118,118,128,.24); --seg-sel:#636366;
     }
   }
   *{box-sizing:border-box}
@@ -82,6 +84,19 @@
   input[type=range]{width:100%;accent-color:var(--blue);height:22px}
 
   .swatch{width:13px;height:13px;border-radius:4px;display:inline-block;vertical-align:middle;margin-right:7px;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
+
+  /* iOS segmented control */
+  .segmented{display:inline-flex;background:var(--seg-track);border-radius:9px;padding:2px;width:100%;max-width:260px}
+  .segmented button{flex:1;border:none;background:none;color:var(--label);font-size:13px;font-weight:500;
+     padding:6px 10px;border-radius:7px;cursor:pointer;white-space:nowrap;transition:background .15s,box-shadow .15s}
+  .segmented button.sel{background:var(--seg-sel);box-shadow:0 1px 3px rgba(0,0,0,.14),0 1px 1px rgba(0,0,0,.04)}
+  /* iOS color swatch picker (segmented selector for colors) */
+  .swatches{display:flex;flex-wrap:wrap;gap:9px}
+  .swatches button{width:26px;height:26px;border-radius:50%;border:none;padding:0;cursor:pointer;
+     box-shadow:0 0 0 1px rgba(0,0,0,.10);transition:transform .12s}
+  .swatches button:active{transform:scale(.88)}
+  .swatches button.sel{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--blue)}
+  .field.wide{flex-basis:100%}
 
   /* preview + code keep a dark terminal surface so ANSI colors read true */
   .preview,pre.code{background:var(--term);border-radius:var(--radius);
@@ -419,17 +434,29 @@ function init(){
   let state = defaultState();
   const $ = id => document.getElementById(id);
 
-  function colorSelect(seg, prop){
-    const sel=document.createElement('select');
-    for(const c of COLOR_ORDER){
-      const o=document.createElement('option'); o.value=c; o.textContent=c;
-      if(seg[prop]===c)o.selected=true; sel.appendChild(o);
-    }
-    sel.onchange=()=>{seg[prop]=sel.value;refresh();};
-    return sel;
+  function colorSwatches(seg, prop){
+    const wrap=document.createElement('div'); wrap.className='swatches';
+    COLOR_ORDER.forEach(c=>{
+      const b=document.createElement('button'); b.type='button'; b.title=c;
+      b.style.background=COLORS[c].css;
+      if(seg[prop]===c) b.classList.add('sel');
+      b.onclick=()=>{ seg[prop]=c; renderSegments(); refresh(); };
+      wrap.appendChild(b);
+    });
+    return wrap;
   }
-  function field(labelText, el){
-    const w=document.createElement('div'); w.className='field';
+  function segmented(options, current, onChange){
+    const wrap=document.createElement('div'); wrap.className='segmented';
+    options.forEach(([v,t])=>{
+      const b=document.createElement('button'); b.type='button'; b.textContent=t;
+      if(v===current) b.classList.add('sel');
+      b.onclick=()=>{ Array.from(wrap.children).forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); onChange(v); };
+      wrap.appendChild(b);
+    });
+    return wrap;
+  }
+  function field(labelText, el, cls){
+    const w=document.createElement('div'); w.className='field'+(cls?' '+cls:'');
     const l=document.createElement('label'); l.textContent=labelText;
     w.appendChild(l); w.appendChild(el); return w;
   }
@@ -465,16 +492,14 @@ function init(){
       box.appendChild(head);
 
       const opts=document.createElement('div'); opts.className='seg-opts'+(seg.enabled?'':' hidden');
-      opts.appendChild(field('color',colorSelect(seg,'color')));
+      opts.appendChild(field('color',colorSwatches(seg,'color'),'wide'));
       if(['git','ctx','rate','kv','in','out','tok'].includes(seg.key)) opts.appendChild(textField('label',seg,'label'));
       if(seg.key==='cwd'){
-        const sel=document.createElement('select');
-        [['full','full path'],['tilde','~ shorten home'],['basename','folder name only']].forEach(([v,t])=>{
-          const o=document.createElement('option');o.value=v;o.textContent=t;if(seg.pathMode===v)o.selected=true;sel.appendChild(o);});
-        sel.onchange=()=>{seg.pathMode=sel.value;refresh();};
-        opts.appendChild(field('path',sel));
+        opts.appendChild(field('path', segmented(
+          [['full','full'],['tilde','~'],['basename','folder']],
+          seg.pathMode, v=>{seg.pathMode=v;refresh();}), 'wide'));
       }
-      if(seg.key==='model'){ opts.appendChild(checkField('show effort',seg,'showEffort')); opts.appendChild(field('effort color',colorSelect(seg,'effortColor'))); }
+      if(seg.key==='model'){ opts.appendChild(checkField('show effort',seg,'showEffort')); opts.appendChild(field('effort color',colorSwatches(seg,'effortColor'),'wide')); }
       if(seg.key==='ctx'||seg.key==='rate') opts.appendChild(checkField('show %',seg,'showPct'));
       if(seg.key==='tok') opts.appendChild(checkField('include cache reads',seg,'includeCache'));
       box.appendChild(opts);
