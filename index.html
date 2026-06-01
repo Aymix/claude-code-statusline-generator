@@ -67,6 +67,8 @@
   input[type=text]{min-width:84px}
   input[type=number]{width:74px}
   input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
+  /* the opened dropdown list: give options a solid surface so text stays legible in both modes */
+  select option{background:var(--card);color:var(--label)}
 
   /* iOS switch (styled checkbox) */
   input[type=checkbox]{appearance:none;-webkit-appearance:none;flex:0 0 auto;cursor:pointer;
