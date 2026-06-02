@@ -52,6 +52,10 @@
   .seg-head .ord{display:flex;flex-direction:column;gap:3px}
   .seg-head .ord button{font-size:11px;line-height:1;width:26px;height:18px;padding:0;
      background:var(--fill);color:var(--blue);border:none;border-radius:6px}
+  .seg-head .name{cursor:pointer;user-select:none}
+  .chev{color:var(--label3);font-size:24px;line-height:1;cursor:pointer;padding:0 4px;
+     transition:transform .2s;flex:0 0 auto}
+  .seg.open .chev{transform:rotate(90deg)}
   .seg-opts{display:flex;flex-wrap:wrap;gap:12px 18px;margin-top:13px;padding-top:13px;border-top:1px solid var(--sep)}
   .seg-opts.hidden{display:none}
   .field{display:flex;flex-direction:column;gap:5px}
@@ -126,6 +130,22 @@
      padding:12px 22px;border-radius:18px;font-size:15px;font-weight:500;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}
   .toast.show{opacity:1;transform:translateX(-50%) scale(1)}
   small.hint{color:var(--label2);font-size:12px}
+
+  /* mobile */
+  @media(max-width:560px){
+    header{padding:18px 16px 8px}
+    header h1{font-size:25px}
+    header p{font-size:14px}
+    .wrap{padding:0 14px 36px}
+    h2{margin:20px 8px 6px}
+    .col{padding:4px 0}
+    .seg{padding:12px 14px}
+    .seg-head .name{font-size:15px}
+    .btnrow{margin:14px 6px}
+    .btn{flex:1 1 auto;text-align:center}
+    .segmented{max-width:none}
+    .scenario .row label{width:84px;font-size:14px}
+  }
 </style>
 </head>
 <body>
@@ -476,22 +496,25 @@ function init(){
   function renderSegments(){
     const host=$('segments'); host.innerHTML='';
     state.segments.forEach((seg,idx)=>{
-      const box=document.createElement('div'); box.className='seg'+(seg.enabled?'':' off');
+      const box=document.createElement('div'); box.className='seg'+(seg.enabled?'':' off')+(seg.expanded?' open':'');
       const head=document.createElement('div'); head.className='seg-head';
       const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=seg.enabled;
       chk.onchange=()=>{seg.enabled=chk.checked;renderSegments();refresh();};
       const name=document.createElement('span'); name.className='name'; name.textContent=seg.name;
       name.insertAdjacentHTML('afterbegin','<span class="swatch" style="background:'+COLORS[seg.color].css+'"></span>');
+      const chev=document.createElement('span'); chev.className='chev'; chev.textContent='›'; chev.title='edit';
+      const toggle=()=>{seg.expanded=!seg.expanded;box.classList.toggle('open',seg.expanded);opts.classList.toggle('hidden',!seg.expanded);};
+      name.onclick=toggle; chev.onclick=toggle;
       const ord=document.createElement('div'); ord.className='ord';
       const up=document.createElement('button'); up.textContent='▲'; up.title='move up';
       up.onclick=()=>{if(idx>0){const a=state.segments;[a[idx-1],a[idx]]=[a[idx],a[idx-1]];renderSegments();refresh();}};
       const dn=document.createElement('button'); dn.textContent='▼'; dn.title='move down';
       dn.onclick=()=>{const a=state.segments;if(idx<a.length-1){[a[idx+1],a[idx]]=[a[idx],a[idx+1]];renderSegments();refresh();}};
       ord.appendChild(up); ord.appendChild(dn);
-      head.appendChild(chk); head.appendChild(name); head.appendChild(ord);
+      head.appendChild(chk); head.appendChild(name); head.appendChild(chev); head.appendChild(ord);
       box.appendChild(head);
 
-      const opts=document.createElement('div'); opts.className='seg-opts'+(seg.enabled?'':' hidden');
+      const opts=document.createElement('div'); opts.className='seg-opts'+(seg.expanded?'':' hidden');
       opts.appendChild(field('color',colorSwatches(seg,'color'),'wide'));
       if(['git','ctx','rate','kv','in','out','tok'].includes(seg.key)) opts.appendChild(textField('label',seg,'label'));
       if(seg.key==='cwd'){
