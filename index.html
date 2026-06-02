@@ -55,9 +55,11 @@
   .bar.compact input[type=range]{width:108px}
   .bar.compact .sl{display:flex;align-items:center;gap:7px}
   .bar.compact .val{font-size:12px;color:var(--label2);min-width:30px;font-variant-numeric:tabular-nums}
-  .wrap{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;max-width:1180px;margin:0 auto;padding:0 22px 48px}
-  @media(max-width:880px){.wrap{grid-template-columns:1fr}}
-  .col{padding:8px 0;min-width:0}
+  .page{max-width:1180px;margin:0 auto;padding:0 22px 48px}
+  .page>h2{margin:24px 4px 8px}
+  .seg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;align-items:start}
+  .seg-grid .seg{margin-bottom:0}
+  .seg-grid .seg.open{grid-column:1 / -1}   /* expanded card takes the full width for comfortable editing */
   .preview,pre.code{max-width:100%}
   h2{font-size:13px;font-weight:400;color:var(--label2);margin:26px 12px 7px;letter-spacing:-.01em}
   h2:first-child{margin-top:8px}
@@ -155,9 +157,9 @@
     header{padding:18px 16px 8px}
     header h1{font-size:25px}
     header p{font-size:14px}
-    .wrap{padding:0 14px 36px}
+    .page{padding:0 14px 36px}
     h2{margin:20px 8px 6px}
-    .col{padding:4px 0}
+    .seg-grid{grid-template-columns:1fr}
     .seg{padding:12px 14px}
     .seg-head .name{font-size:15px}
     .btnrow{margin:14px 6px}
@@ -201,27 +203,23 @@
     </div>
   </div>
 </div>
-<div class="wrap">
-  <div class="col left">
-    <h2>Segments</h2>
-    <div id="segments"></div>
-  </div>
+<main class="page">
+  <h2>Segments</h2>
+  <div id="segments" class="seg-grid"></div>
 
-  <div class="col right">
-    <h2>Preview</h2>
-    <div class="preview" id="preview"></div>
+  <h2>Preview</h2>
+  <div class="preview" id="preview"></div>
 
-    <h2>Output</h2>
-    <div class="btnrow">
-      <button class="btn" id="copyPrompt">Copy prompt</button>
-      <button class="btn" id="downloadMd">Download .md</button>
-      <button class="btn alt" id="copyScript">Copy script</button>
-      <button class="btn alt" id="downloadSh">Download .sh</button>
-      <button class="btn alt" id="reset" style="margin-left:auto">Reset</button>
-    </div>
-    <pre class="code" id="script"></pre>
+  <h2>Output</h2>
+  <div class="btnrow">
+    <button class="btn" id="copyPrompt">Copy prompt</button>
+    <button class="btn" id="downloadMd">Download .md</button>
+    <button class="btn alt" id="copyScript">Copy script</button>
+    <button class="btn alt" id="downloadSh">Download .sh</button>
+    <button class="btn alt" id="reset" style="margin-left:auto">Reset</button>
   </div>
-</div>
+  <pre class="code" id="script"></pre>
+</main>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -245,15 +243,15 @@ const RESET = '\\033[0m';
 function defaultState(){
   return {
     segments:[
-      {key:'cwd',  name:'Working directory', enabled:true,  color:'boldblue', pathMode:'full'},
-      {key:'model',name:'Model name',        enabled:true,  color:'cyan', showEffort:true, effortColor:'grey'},
-      {key:'git',  name:'Git branch',        enabled:false, color:'blue', label:'git:'},
-      {key:'ctx',  name:'Context bar',       enabled:true,  color:'yellow', label:'ctx:', showPct:true},
-      {key:'rate', name:'Rate-limit bar (5h)',enabled:true, color:'orange', label:'total:', showPct:true},
-      {key:'kv',   name:'Cache read (kv)',   enabled:true,  color:'magenta', label:'kv:'},
-      {key:'in',   name:'Input tokens',      enabled:true,  color:'green', label:'in:'},
-      {key:'out',  name:'Output tokens',     enabled:true,  color:'red', label:'out:'},
-      {key:'tok',  name:'Total tokens',      enabled:true,  color:'white', label:'tok:', includeCache:true},
+      {key:'cwd',  name:'Directory',     enabled:true,  color:'boldblue', pathMode:'full'},
+      {key:'model',name:'Model',         enabled:true,  color:'cyan', showEffort:true, effortColor:'grey'},
+      {key:'git',  name:'Git branch',    enabled:false, color:'blue', label:'git:'},
+      {key:'ctx',  name:'Context bar',   enabled:true,  color:'yellow', label:'ctx:', showPct:true},
+      {key:'rate', name:'Rate bar (5h)', enabled:true,  color:'orange', label:'total:', showPct:true},
+      {key:'kv',   name:'Cache (kv)',    enabled:true,  color:'magenta', label:'kv:'},
+      {key:'in',   name:'Input',         enabled:true,  color:'green', label:'in:'},
+      {key:'out',  name:'Output',        enabled:true,  color:'red', label:'out:'},
+      {key:'tok',  name:'Total',         enabled:true,  color:'white', label:'tok:', includeCache:true},
     ],
     globals:{barWidth:10, filled:'█', empty:'░', separator:'  '},
     sample:{cwd:'/home/you/work/my-project', home:'/home/you', model:'Claude Sonnet',
