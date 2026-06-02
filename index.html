@@ -37,10 +37,24 @@
   header h1{margin:0;font-size:32px;line-height:1.1;letter-spacing:-.02em;font-weight:700}
   header p{margin:8px 0 0;color:var(--label2);font-size:15px;max-width:680px}
   header a{color:var(--blue);text-decoration:none}
-  .topbar{max-width:1180px;margin:0 auto;padding:2px 22px 0}
-  .topbar h2{margin:8px 12px 7px}
-  .topbar .bar{background:var(--card);border-radius:var(--radius);box-shadow:0 1px 2px rgba(0,0,0,.04);
-     display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 22px;padding:14px 16px}
+  .topbar{max-width:1180px;margin:0 auto;padding:8px 22px 0}
+  .bar.compact{background:var(--card);border-radius:var(--radius);box-shadow:0 1px 2px rgba(0,0,0,.04);
+     padding:10px 14px;display:flex;flex-direction:column;gap:9px}
+  .srow{display:flex;flex-wrap:wrap;align-items:center;gap:9px 16px}
+  .srow+.srow{padding-top:9px;border-top:1px solid var(--sep)}
+  .srow .grp{font-size:11px;font-weight:700;color:var(--label2);text-transform:uppercase;letter-spacing:.03em;min-width:52px}
+  .bar.compact .field{flex-direction:row;align-items:center;gap:7px}
+  .bar.compact .field label{font-size:12px;color:var(--label2)}
+  .bar.compact input[type=text],.bar.compact input[type=number]{padding:5px 7px;font-size:13px}
+  .bar.compact input[type=number]{width:54px}
+  .bar.compact input[type=text]{width:46px;min-width:0;text-align:center}
+  .bar.compact select{padding:5px 26px 5px 9px;font-size:13px}
+  .bar.compact input[type=checkbox]{width:38px;height:23px}
+  .bar.compact input[type=checkbox]::after{width:19px;height:19px}
+  .bar.compact input[type=checkbox]:checked::after{transform:translateX(15px)}
+  .bar.compact input[type=range]{width:108px}
+  .bar.compact .sl{display:flex;align-items:center;gap:7px}
+  .bar.compact .val{font-size:12px;color:var(--label2);min-width:30px;font-variant-numeric:tabular-nums}
   .wrap{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;max-width:1180px;margin:0 auto;padding:0 22px 48px}
   @media(max-width:880px){.wrap{grid-template-columns:1fr}}
   .col{padding:8px 0;min-width:0}
@@ -150,8 +164,8 @@
     .btn{flex:1 1 auto;text-align:center}
     .segmented{max-width:none}
     .scenario .row label{width:84px;font-size:14px}
-    .topbar{padding:2px 14px 0}
-    .topbar .bar{gap:12px 16px}
+    .topbar{padding:6px 14px 0}
+    .srow{gap:8px 12px}
   }
 </style>
 </head>
@@ -161,19 +175,29 @@
   <p>Toggle segments, tune colors and labels, watch the live preview — then copy the setup prompt or download a Markdown spec to hand to Claude Code. <a href="https://github.com/Aymix/claude-code-statusline-generator" target="_blank" rel="noopener">Repo</a></p>
 </header>
 <div class="topbar">
-  <h2>Global style</h2>
-  <div class="bar">
-    <div class="field"><label>Bar width</label><input type="number" id="g-barWidth" min="3" max="30" /></div>
-    <div class="field"><label>Filled char</label><input type="text" id="g-filled" maxlength="2" style="width:60px" /></div>
-    <div class="field"><label>Empty char</label><input type="text" id="g-empty" maxlength="2" style="width:60px" /></div>
-    <div class="field"><label>Separator</label>
-      <select id="g-sep">
-        <option value="  ">2 spaces</option>
-        <option value=" ">1 space</option>
-        <option value="  |  ">| pipe</option>
-        <option value="  ·  ">· dot</option>
-        <option value="  •  ">• bullet</option>
-      </select>
+  <div class="bar compact">
+    <div class="srow">
+      <span class="grp">Style</span>
+      <div class="field"><label>Bar width</label><input type="number" id="g-barWidth" min="3" max="30" /></div>
+      <div class="field"><label>Filled</label><input type="text" id="g-filled" maxlength="2" /></div>
+      <div class="field"><label>Empty</label><input type="text" id="g-empty" maxlength="2" /></div>
+      <div class="field"><label>Separator</label>
+        <select id="g-sep">
+          <option value="  ">2 spaces</option>
+          <option value=" ">1 space</option>
+          <option value="  |  ">| pipe</option>
+          <option value="  ·  ">· dot</option>
+          <option value="  •  ">• bullet</option>
+        </select>
+      </div>
+    </div>
+    <div class="srow">
+      <span class="grp">Preview</span>
+      <div class="field"><label>Context</label><div class="sl"><input type="range" id="s-ctx" min="0" max="100" /><span class="val" id="s-ctx-v"></span></div></div>
+      <div class="field"><label>Rate</label><div class="sl"><input type="range" id="s-rate" min="0" max="100" /><span class="val" id="s-rate-v"></span></div></div>
+      <span class="field inline"><input type="checkbox" id="s-rateAvail" /><label for="s-rateAvail">rate</label></span>
+      <span class="field inline"><input type="checkbox" id="s-kvOn" /><label for="s-kvOn">kv&gt;0</label></span>
+      <span class="field inline"><input type="checkbox" id="s-effortOn" /><label for="s-effortOn">effort</label></span>
     </div>
   </div>
 </div>
@@ -186,15 +210,6 @@
   <div class="col right">
     <h2>Preview</h2>
     <div class="preview" id="preview"></div>
-    <div class="scenario" style="margin-top:10px">
-      <div class="row"><label>Context %</label><input type="range" id="s-ctx" min="0" max="100" /><span class="val" id="s-ctx-v"></span></div>
-      <div class="row"><label>Rate %</label><input type="range" id="s-rate" min="0" max="100" /><span class="val" id="s-rate-v"></span></div>
-      <div class="checks" style="margin-top:6px">
-        <span class="field inline"><input type="checkbox" id="s-rateAvail" /><label for="s-rateAvail">rate available</label></span>
-        <span class="field inline"><input type="checkbox" id="s-kvOn" /><label for="s-kvOn">cache (kv) &gt; 0</label></span>
-        <span class="field inline"><input type="checkbox" id="s-effortOn" /><label for="s-effortOn">effort set</label></span>
-      </div>
-    </div>
 
     <h2>Output</h2>
     <div class="btnrow">
