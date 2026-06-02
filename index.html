@@ -60,6 +60,27 @@
   .seg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;align-items:start}
   .seg-grid .seg{margin-bottom:0}
   .seg-grid .seg.open{grid-column:1 / -1}   /* expanded card takes the full width for comfortable editing */
+  /* compact segment boxes (~30% smaller) */
+  .seg-grid{grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:8px}
+  .seg-grid .seg{padding:9px 11px}
+  .seg-grid .seg-head{gap:8px}
+  .seg-grid .seg-head .name{font-size:13px}
+  .seg-grid .seg-head .ord button{width:18px;height:14px;font-size:9px}
+  .seg-grid .chev{font-size:18px;padding:0 2px}
+  .seg-grid .swatch{width:9px;height:9px;margin-right:5px}
+  .seg-grid input[type=checkbox]{width:32px;height:20px}
+  .seg-grid input[type=checkbox]::after{width:16px;height:16px}
+  .seg-grid input[type=checkbox]:checked::after{transform:translateX(12px)}
+  .seg-grid .seg-opts{gap:8px 12px;margin-top:9px;padding-top:9px}
+  .seg-grid .field label{font-size:10px}
+  .seg-grid .field.inline label{font-size:12px}
+  .seg-grid input[type=text],.seg-grid select{padding:5px 8px;font-size:12px}
+  .seg-grid input[type=text]{min-width:60px}
+  .seg-grid .swatches{gap:6px}
+  .seg-grid .swatches button{width:18px;height:18px}
+  .seg-grid .swatches button.sel{box-shadow:0 0 0 2px var(--card),0 0 0 3px var(--blue)}
+  .seg-grid .segmented{max-width:220px}
+  .seg-grid .segmented button{font-size:11px;padding:4px 7px}
   .preview,pre.code{max-width:100%}
   h2{font-size:13px;font-weight:400;color:var(--label2);margin:26px 12px 7px;letter-spacing:-.01em}
   h2:first-child{margin-top:8px}
